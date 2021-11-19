@@ -51,8 +51,8 @@ use crate::db::{
         ConsoleSession, Disk, DiskAttachment, DiskRuntimeState, Generation,
         Instance, InstanceRuntimeState, Name, Organization, OrganizationUpdate,
         OximeterInfo, ProducerEndpoint, Project, ProjectUpdate, RouterRoute,
-        RouterRouteUpdate, Sled, Vpc, VpcRouter, VpcRouterUpdate, VpcSubnet,
-        VpcSubnetUpdate, VpcUpdate,
+        RouterRouteUpdate, Sled, UpdateAvailableArtifact, Vpc, VpcRouter,
+        VpcRouterUpdate, VpcSubnet, VpcSubnetUpdate, VpcUpdate,
     },
     pagination::paginated,
     update_and_check::{UpdateAndCheck, UpdateStatus},
@@ -1726,6 +1726,28 @@ impl DataStore {
                     "error deleting session: {:?}",
                     e
                 ))
+            })
+    }
+
+    pub async fn update_available_artifact_upsert(
+        &self,
+        artifact: UpdateAvailableArtifact,
+    ) -> CreateResult<UpdateAvailableArtifact> {
+        use db::schema::update_available_artifact::dsl;
+        diesel::insert_into(dsl::update_available_artifact)
+            .values(artifact.clone())
+            .on_conflict((dsl::name, dsl::version, dsl::kind))
+            .do_update()
+            .set(artifact.clone())
+            .returning(UpdateAvailableArtifact::as_returning())
+            .get_result_async(self.pool())
+            .await
+            .map_err(|e| {
+                public_error_from_diesel_pool_create(
+                    e,
+                    ResourceType::UpdateAvailableArtifact,
+                    &artifact.to_string(),
+                )
             })
     }
 }

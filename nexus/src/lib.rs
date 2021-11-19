@@ -22,6 +22,7 @@ pub mod internal_api; // public for testing
 mod nexus;
 mod saga_interface;
 mod sagas;
+mod updates;
 
 pub use config::Config;
 pub use context::ServerContext;
@@ -83,7 +84,7 @@ impl Server {
      */
     pub async fn start(
         config: &Config,
-        rack_id: &Uuid,
+        rack_id: Uuid,
         log: &Logger,
     ) -> Result<Server, String> {
         let log = log.new(o!("name" => config.id.to_string()));
@@ -91,7 +92,7 @@ impl Server {
 
         let ctxlog = log.new(o!("component" => "ServerContext"));
         let pool = db::Pool::new(&config.database);
-        let apictx = ServerContext::new(rack_id, ctxlog, pool, &config);
+        let apictx = ServerContext::new(rack_id, ctxlog, pool, &config).await;
 
         let c1 = Arc::clone(&apictx);
         let http_server_starter_external = dropshot::HttpServerStarter::new(
@@ -164,7 +165,7 @@ pub async fn run_server(config: &Config) -> Result<(), String> {
         .to_logger("nexus")
         .map_err(|message| format!("initializing logger: {}", message))?;
     let rack_id = Uuid::new_v4();
-    let server = Server::start(config, &rack_id, &log).await?;
+    let server = Server::start(config, rack_id, &log).await?;
     server.register_as_producer().await;
     server.wait_for_finish().await
 }
