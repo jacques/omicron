@@ -1,6 +1,7 @@
 //! Models for timeseries data in ClickHouse
 // Copyright 2021 Oxide Computer Company
 
+use crate::TimeseriesKey;
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use oximeter::histogram::Histogram;
@@ -224,11 +225,11 @@ macro_rules! impl_table_name {
 macro_rules! declare_field_row {
     {$name:ident, $value_type:ty, $data_type:literal} => {
         #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-        pub struct $name {
-            pub timeseries_name: String,
-            pub timeseries_key: String,
-            pub field_name: String,
-            pub field_value: $value_type,
+        struct $name {
+            timeseries_name: String,
+            timeseries_key: TimeseriesKey,
+            field_name: String,
+            field_value: $value_type,
         }
         impl_table_name!{$name, "fields", $data_type}
     }
@@ -243,12 +244,12 @@ declare_field_row! {UuidFieldRow, Uuid, "uuid"}
 macro_rules! declare_measurement_row {
     {$name:ident, $datum_type:ty, $data_type:literal} => {
         #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-        pub struct $name {
-            pub timeseries_name: String,
-            pub timeseries_key: String,
+        struct $name {
+            timeseries_name: String,
+            timeseries_key: TimeseriesKey,
             #[serde(with = "serde_timestamp")]
-            pub timestamp: DateTime<Utc>,
-            pub datum: $datum_type,
+            timestamp: DateTime<Utc>,
+            datum: $datum_type,
         }
 
         impl_table_name!{$name, "measurements", $data_type}
@@ -264,14 +265,14 @@ declare_measurement_row! { BytesMeasurementRow, Bytes, "bytes" }
 macro_rules! declare_cumulative_measurement_row {
     {$name:ident, $datum_type:ty, $data_type:literal} => {
         #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-        pub struct $name {
-            pub timeseries_name: String,
-            pub timeseries_key: String,
+        struct $name {
+            timeseries_name: String,
+            timeseries_key: TimeseriesKey,
             #[serde(with = "serde_timestamp")]
-            pub start_time: DateTime<Utc>,
+            start_time: DateTime<Utc>,
             #[serde(with = "serde_timestamp")]
-            pub timestamp: DateTime<Utc>,
-            pub datum: $datum_type,
+            timestamp: DateTime<Utc>,
+            datum: $datum_type,
         }
 
         impl_table_name!{$name, "measurements", $data_type}
@@ -287,9 +288,9 @@ declare_cumulative_measurement_row! { CumulativeF64MeasurementRow, f64, "cumulat
 /// for the bins and counts, respectively. This handles conversion between the type used to
 /// represent histograms in Rust, [`Histogram`], and this in-database representation.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DbHistogram<T> {
-    pub bins: Vec<T>,
-    pub counts: Vec<u64>,
+struct DbHistogram<T> {
+    bins: Vec<T>,
+    counts: Vec<u64>,
 }
 
 impl<T> From<&Histogram<T>> for DbHistogram<T>
@@ -305,15 +306,15 @@ where
 macro_rules! declare_histogram_measurement_row {
     {$name:ident, $datum_type:ty, $data_type:literal} => {
         #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-        pub struct $name {
-            pub timeseries_name: String,
-            pub timeseries_key: String,
+        struct $name {
+            timeseries_name: String,
+            timeseries_key: TimeseriesKey,
             #[serde(with = "serde_timestamp")]
-            pub start_time: DateTime<Utc>,
+            start_time: DateTime<Utc>,
             #[serde(with = "serde_timestamp")]
-            pub timestamp: DateTime<Utc>,
+            timestamp: DateTime<Utc>,
             #[serde(flatten)]
-            pub datum: $datum_type,
+            datum: $datum_type,
         }
 
         impl_table_name!{$name, "measurements", $data_type}
@@ -328,7 +329,7 @@ fn unroll_from_source(sample: &Sample) -> BTreeMap<String, Vec<String>> {
     let mut out = BTreeMap::new();
     for field in sample.fields() {
         let timeseries_name = sample.timeseries_name.clone();
-        let timeseries_key = sample.timeseries_key.clone();
+        let timeseries_key = crate::timeseries_key(&sample);
         let field_name = field.name.clone();
         let (table_name, row_string) = match &field.value {
             FieldValue::Bool(inner) => {
@@ -414,7 +415,7 @@ pub(crate) fn unroll_field_rows(
 /// ClickHouse.
 pub(crate) fn unroll_measurement_row(sample: &Sample) -> (String, String) {
     let timeseries_name = sample.timeseries_name.clone();
-    let timeseries_key = sample.timeseries_key.clone();
+    let timeseries_key = crate::timeseries_key(&sample);
     let measurement = &sample.measurement;
     let timestamp = measurement.timestamp();
     let extract_start_time = |measurement: &Measurement| {
@@ -538,35 +539,35 @@ pub(crate) fn schema_for(sample: &Sample) -> TimeseriesSchema {
 
 // A scalar timestamped sample from a gauge timeseries, as extracted from a query to the database.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DbTimeseriesScalarGaugeSample<T> {
-    pub timeseries_key: String,
+struct DbTimeseriesScalarGaugeSample<T> {
+    timeseries_key: TimeseriesKey,
     #[serde(with = "serde_timestamp")]
-    pub timestamp: DateTime<Utc>,
-    pub datum: T,
+    timestamp: DateTime<Utc>,
+    datum: T,
 }
 
 // A scalar timestamped sample from a cumulative timeseries, as extracted from a query to the
 // database.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DbTimeseriesScalarCumulativeSample<T> {
-    pub timeseries_key: String,
+struct DbTimeseriesScalarCumulativeSample<T> {
+    timeseries_key: TimeseriesKey,
     #[serde(with = "serde_timestamp")]
-    pub start_time: DateTime<Utc>,
+    start_time: DateTime<Utc>,
     #[serde(with = "serde_timestamp")]
-    pub timestamp: DateTime<Utc>,
-    pub datum: T,
+    timestamp: DateTime<Utc>,
+    datum: T,
 }
 
 // A histogram timestamped sample from a timeseries, as extracted from a query to the database.
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DbTimeseriesHistogramSample<T> {
-    pub timeseries_key: String,
+struct DbTimeseriesHistogramSample<T> {
+    timeseries_key: TimeseriesKey,
     #[serde(with = "serde_timestamp")]
-    pub start_time: DateTime<Utc>,
+    start_time: DateTime<Utc>,
     #[serde(with = "serde_timestamp")]
-    pub timestamp: DateTime<Utc>,
-    pub bins: Vec<T>,
-    pub counts: Vec<u64>,
+    timestamp: DateTime<Utc>,
+    bins: Vec<T>,
+    counts: Vec<u64>,
 }
 
 impl<T> From<DbTimeseriesScalarGaugeSample<T>> for Measurement
@@ -612,19 +613,19 @@ where
 
 fn parse_timeseries_scalar_gauge_measurement<'a, T>(
     line: &'a str,
-) -> (String, Measurement)
+) -> (TimeseriesKey, Measurement)
 where
     T: Deserialize<'a> + Into<Datum>,
     Datum: From<T>,
 {
     let sample =
         serde_json::from_str::<DbTimeseriesScalarGaugeSample<T>>(line).unwrap();
-    (sample.timeseries_key.to_string(), sample.into())
+    (sample.timeseries_key.clone(), sample.into())
 }
 
 fn parse_timeseries_scalar_cumulative_measurement<'a, T>(
     line: &'a str,
-) -> (String, Measurement)
+) -> (TimeseriesKey, Measurement)
 where
     T: Deserialize<'a> + traits::Cumulative,
     Datum: From<Cumulative<T>>,
@@ -632,19 +633,19 @@ where
     let sample =
         serde_json::from_str::<DbTimeseriesScalarCumulativeSample<T>>(line)
             .unwrap();
-    (sample.timeseries_key.to_string(), sample.into())
+    (sample.timeseries_key.clone(), sample.into())
 }
 
 fn parse_timeseries_histogram_measurement<T>(
     line: &str,
-) -> (String, Measurement)
+) -> (TimeseriesKey, Measurement)
 where
     T: Into<Datum> + traits::HistogramSupport,
     Datum: From<Histogram<T>>,
 {
     let sample =
         serde_json::from_str::<DbTimeseriesHistogramSample<T>>(line).unwrap();
-    (sample.timeseries_key.to_string(), sample.into())
+    (sample.timeseries_key.clone(), sample.into())
 }
 
 // Parse a line of JSON from the database resulting from `as_select_query`, into a measurement of
@@ -652,7 +653,7 @@ where
 pub(crate) fn parse_measurement_from_row(
     line: &str,
     datum_type: DatumType,
-) -> (String, Measurement) {
+) -> (TimeseriesKey, Measurement) {
     match datum_type {
         DatumType::Bool => {
             parse_timeseries_scalar_gauge_measurement::<DbBool>(line)
@@ -703,7 +704,6 @@ pub struct Metric {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Timeseries {
     pub timeseries_name: String,
-    pub timeseries_key: String,
     pub target: Target,
     pub metric: Metric,
     pub measurements: Vec<Measurement>,
@@ -789,21 +789,21 @@ mod tests {
         fn run_test(line: &str, datum: &Datum, timestamp: DateTime<Utc>) {
             let (key, measurement) =
                 parse_measurement_from_row(line, datum.datum_type());
-            assert_eq!(key, "foo:bar");
+            assert_eq!(key, vec!["foo", "bar"]);
             assert!(measurement.start_time().is_none());
             assert_eq!(measurement.timestamp(), timestamp);
             assert_eq!(measurement.datum(), datum);
         }
 
-        let line = r#"{"timeseries_key": "foo:bar", "timestamp": "2021-01-01 00:00:00.123456789", "datum": 1 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "timestamp": "2021-01-01 00:00:00.123456789", "datum": 1 }"#;
         let datum = Datum::from(true);
         run_test(line, &datum, timestamp);
 
-        let line = r#"{"timeseries_key": "foo:bar", "timestamp": "2021-01-01 00:00:00.123456789", "datum": 2 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "timestamp": "2021-01-01 00:00:00.123456789", "datum": 2 }"#;
         let datum = Datum::from(2);
         run_test(line, &datum, timestamp);
 
-        let line = r#"{"timeseries_key": "foo:bar", "timestamp": "2021-01-01 00:00:00.123456789", "datum": 3.0 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "timestamp": "2021-01-01 00:00:00.123456789", "datum": 3.0 }"#;
         let datum = Datum::from(3.0);
         run_test(line, &datum, timestamp);
     }
@@ -822,18 +822,18 @@ mod tests {
         ) {
             let (key, measurement) =
                 parse_measurement_from_row(line, datum.datum_type());
-            assert_eq!(key, "foo:bar");
+            assert_eq!(key, vec!["foo", "bar"]);
             assert_eq!(measurement.start_time().unwrap(), start_time);
             assert_eq!(measurement.timestamp(), timestamp);
             assert_eq!(measurement.datum(), datum);
         }
 
-        let line = r#"{"timeseries_key": "foo:bar", "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "datum": 2 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "datum": 2 }"#;
         let cumulative = Cumulative::with_start_time(start_time, 2);
         let datum = Datum::from(cumulative);
         run_test(line, &datum, start_time, timestamp);
 
-        let line = r#"{"timeseries_key": "foo:bar", "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "datum": 3.0 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "datum": 3.0 }"#;
         let cumulative = Cumulative::with_start_time(start_time, 3.0);
         let datum = Datum::from(cumulative);
         run_test(line, &datum, start_time, timestamp);
@@ -843,7 +843,7 @@ mod tests {
     #[should_panic]
     fn test_parse_bad_cumulative_json_data() {
         // Missing `start_time` field
-        let line = r#"{"timeseries_key": "foo:bar", "timestamp": "2021-01-01 00:00:00.123456789", "datum": 3.0 }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "timestamp": "2021-01-01 00:00:00.123456789", "datum": 3.0 }"#;
         let (_, _) = parse_measurement_from_row(line, DatumType::CumulativeF64);
     }
 
@@ -853,10 +853,10 @@ mod tests {
         let start_time = Utc.ymd(2021, 1, 1).and_hms_nano(0, 0, 0, 123456789);
         let timestamp = Utc.ymd(2021, 1, 1).and_hms_nano(1, 0, 0, 123456789);
 
-        let line = r#"{"timeseries_key": "foo:bar", "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "bins": [0, 1], "counts": [1, 1] }"#;
+        let line = r#"{"timeseries_key": ["foo", "bar"], "start_time": "2021-01-01 00:00:00.123456789", "timestamp": "2021-01-01 01:00:00.123456789", "bins": [0, 1], "counts": [1, 1] }"#;
         let (key, measurement) =
             parse_measurement_from_row(line, DatumType::HistogramI64);
-        assert_eq!(key, "foo:bar");
+        assert_eq!(key, vec!["foo", "bar"]);
         assert_eq!(measurement.start_time().unwrap(), start_time);
         assert_eq!(measurement.timestamp(), timestamp);
         if let Datum::HistogramI64(hist) = measurement.datum() {
@@ -870,14 +870,14 @@ mod tests {
     // A regression test for parsing a timeseries key which requires escaping.
     #[test]
     fn test_parse_timeseries_key_requiring_escape() {
-        let line = "{\"timeseries_key\": \"foo:\\/some\\/path\", \"timestamp\": \"2021-01-01 01:00:00.123456789\", \"datum\": 2.0 }";
+        let line = "{\"timeseries_key\": [\"foo\", \"\\/some\\/path\"], \"timestamp\": \"2021-01-01 01:00:00.123456789\", \"datum\": 2.0 }";
         let (key, _) = parse_measurement_from_row(line, DatumType::F64);
-        assert_eq!(key, "foo:/some/path");
+        assert_eq!(key, vec!["foo", "/some/path"]);
     }
 
     #[test]
     fn test_parse_string_datum_requiring_escape() {
-        let line = "{\"timeseries_key\": \"foo:bar\", \"timestamp\": \"2021-01-01 01:00:00.123456789\", \"datum\": \"\\/some\\/path\"}";
+        let line = "{\"timeseries_key\": [\"foo\", \"bar\"], \"timestamp\": \"2021-01-01 01:00:00.123456789\", \"datum\": \"\\/some\\/path\"}";
         let (_, measurement) =
             parse_measurement_from_row(line, DatumType::String);
         assert_eq!(measurement.datum(), &Datum::from("/some/path"));

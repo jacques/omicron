@@ -1,6 +1,7 @@
 //! Rust client to ClickHouse database
 // Copyright 2021 Oxide Computer Company
 
+use crate::TimeseriesKey;
 use crate::{model, query, Error};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -122,7 +123,6 @@ impl Client {
                 reconstitute_from_schema(&timeseries_key, &schema).map(
                     |(target, metric)| model::Timeseries {
                         timeseries_name: filter.timeseries_name.clone(),
-                        timeseries_key: timeseries_key.to_string(),
                         target,
                         metric,
                         measurements,
@@ -292,7 +292,7 @@ impl DbWrite for Client {
             // Key on both the timeseries name and key, as timeseries may actually share keys.
             let key = (
                 sample.timeseries_name.as_str(),
-                sample.timeseries_key.as_str(),
+                crate::timeseries_key(&sample),
             );
             if !seen_timeseries.contains(&key) {
                 for (table_name, table_rows) in model::unroll_field_rows(sample)
@@ -425,7 +425,7 @@ fn error_for_schema_mismatch(
 
 // Reconstitute a target and metric struct from a timeseries key and its schema, if possible.
 fn reconstitute_from_schema(
-    timeseries_key: &str,
+    timeseries_key: &TimeseriesKey,
     schema: &model::TimeseriesSchema,
 ) -> Result<(model::Target, model::Metric), Error> {
     let (target_name, metric_name) =
@@ -433,7 +433,7 @@ fn reconstitute_from_schema(
     let (target_fields, metric_fields): (Vec<_>, Vec<_>) = schema
         .fields
         .iter()
-        .zip(timeseries_key.split(':'))
+        .zip(timeseries_key.iter())
         .map(|(field, value_str)| {
             FieldValue::parse_as_type(value_str, field.ty)
                 .map(|value| {
@@ -649,7 +649,7 @@ mod tests {
         db.cleanup().await.expect("Failed to cleanup ClickHouse server");
     }
 
-    fn make_schema() -> (model::TimeseriesSchema, String) {
+    fn make_schema() -> (model::TimeseriesSchema, TimeseriesKey) {
         let schema = model::TimeseriesSchema {
             timeseries_name: "some_target:some_metric".to_string(),
             fields: vec![
@@ -677,7 +677,7 @@ mod tests {
             datum_type: DatumType::F64,
             created: Utc::now(),
         };
-        (schema, "0:1:2:3".to_string())
+        (schema, (0..=3).map(|x| x.to_string()).collect())
     }
 
     #[test]
@@ -719,15 +719,15 @@ mod tests {
     #[should_panic]
     fn test_reconstitute_from_schema_empty_key() {
         let (schema, _) = make_schema();
-        let _ = reconstitute_from_schema("", &schema);
+        let _ = reconstitute_from_schema(&vec![], &schema);
     }
 
     #[test]
     #[should_panic]
     fn test_reconstitute_from_schema_missing_field() {
         let (schema, _) = make_schema();
-        let missing_field = "1:2:3";
-        let _ = reconstitute_from_schema(missing_field, &schema);
+        let missing_field = (1..=3).map(|x| x.to_string()).collect();
+        let _ = reconstitute_from_schema(&missing_field, &schema);
     }
 
     async fn setup_filter_testcase() -> (ClickHouseInstance, Client, Vec<Sample>)
@@ -796,7 +796,6 @@ mod tests {
             2,
             "Expected 2 samples per timeseries"
         );
-        assert_eq!(timeseries.timeseries_key, sample.timeseries_key);
 
         // Compare measurements themselves
         let expected_measurements =

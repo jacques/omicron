@@ -2,7 +2,7 @@
 
 // Copyright 2021 Oxide Computer Company
 
-use oximeter::FieldType;
+use oximeter::{Field, FieldType, Sample};
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -35,4 +35,21 @@ pub enum Error {
     /// An error querying or filtering data
     #[error("Invalid query or data filter: {0}")]
     QueryError(String),
+}
+
+pub(crate) type TimeseriesKey = Vec<String>;
+
+pub(crate) fn timeseries_key(sample: &Sample) -> TimeseriesKey {
+    timeseries_key_for(&sample.target_fields(), &sample.metric_fields())
+}
+
+pub(crate) fn timeseries_key_for(
+    target_fields: &[Field],
+    metric_fields: &[Field],
+) -> TimeseriesKey {
+    target_fields
+        .iter()
+        .chain(metric_fields.iter())
+        .map(|field| field.value.to_string())
+        .collect()
 }

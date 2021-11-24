@@ -9,8 +9,6 @@ use num_traits::{One, Zero};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::boxed::Box;
-use std::cmp::Ordering;
-use std::collections::BTreeSet;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ops::{Add, AddAssign};
@@ -477,9 +475,6 @@ pub struct Sample {
     /// The name of the timeseries this sample belongs to
     pub timeseries_name: String,
 
-    /// The key of the timeseries this sample belongs to
-    pub timeseries_key: String,
-
     // Target name and fields
     target: FieldSet,
 
@@ -500,35 +495,6 @@ impl PartialEq for Sample {
     }
 }
 
-impl Eq for Sample {}
-
-impl Ord for Sample {
-    /// Order two Samples.
-    ///
-    /// Samples are ordered by their target and metric keys, which include the field values of
-    /// those, and then by timestamps. Importantly, the _data_ is not used for ordering.
-    fn cmp(&self, other: &Sample) -> Ordering {
-        self.timeseries_key
-            .cmp(&other.timeseries_key)
-            .then(
-                self.measurement
-                    .timestamp()
-                    .cmp(&other.measurement.timestamp()),
-            )
-            .then(
-                self.measurement
-                    .start_time()
-                    .cmp(&other.measurement.start_time()),
-            )
-    }
-}
-
-impl PartialOrd for Sample {
-    fn partial_cmp(&self, other: &Sample) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl Sample {
     /// Construct a new sample.
     ///
@@ -541,7 +507,6 @@ impl Sample {
     {
         Self {
             timeseries_name: format!("{}:{}", target.name(), metric.name()),
-            timeseries_key: format!("{}:{}", target.key(), metric.key()),
             target: FieldSet::from_target(target),
             metric: FieldSet::from_metric(metric),
             measurement: metric.measure(),
@@ -578,7 +543,7 @@ impl Sample {
 }
 
 type ProducerList = Vec<Box<dyn crate::Producer>>;
-pub type ProducerResults = Vec<Result<BTreeSet<Sample>, Error>>;
+pub type ProducerResults = Vec<Result<Vec<Sample>, Error>>;
 
 /// The `ProducerRegistry` is a centralized collection point for metrics in consumer code.
 #[derive(Debug, Clone)]
@@ -722,7 +687,6 @@ mod tests {
             sample.timeseries_name,
             format!("{}:{}", t.name(), m.name())
         );
-        assert_eq!(sample.timeseries_key, format!("{}:{}", t.key(), m.key()));
         assert!(sample.measurement.start_time().is_none());
         assert_eq!(sample.measurement.datum(), &Datum::from(1i64));
 
