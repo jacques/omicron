@@ -38,6 +38,7 @@ table! {
         state_generation -> Int8,
         active_server_id -> Uuid,
         active_propolis_id -> Uuid,
+        active_propolis_ip -> Nullable<Inet>,
         ncpus -> Int8,
         memory -> Int8,
         hostname -> Text,

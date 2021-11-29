@@ -3,6 +3,15 @@
 version = 3
 
 [[package]]
+name = "aead"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b613b8e1e3cf911a086f53f03bf286f52fd7a7258e4fa606f0ef220d39d8877"
+dependencies = [
+ "generic-array 0.14.4",
+]
+
+[[package]]
 name = "aes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12,6 +21,21 @@ dependencies = [
  "cipher",
  "cpufeatures",
  "opaque-debug 0.3.0",
+]
+
+[[package]]
+name = "aes-gcm-siv"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "589c637f0e68c877bbd59a4599bbe849cac8e5f3e4b5a3ebae8f528cd218dcdc"
+dependencies = [
+ "aead",
+ "aes",
+ "cipher",
+ "ctr",
+ "polyval",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -144,7 +168,7 @@ dependencies = [
 [[package]]
 name = "bhyve_api"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 dependencies = [
  "bitflags",
  "libc",
@@ -315,6 +339,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f92cfa0fd5690b3cf8c1ef2cabbd9b7ef22fa53cf5e1f92b05103f6d5d1cf6e7"
 
 [[package]]
+name = "const_format"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22bc6cd49b0ec407b680c3e380182b6ac63b73991cb7602de350352fc309b614"
+dependencies = [
+ "const_format_proc_macros",
+]
+
+[[package]]
+name = "const_format_proc_macros"
+version = "0.2.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef196d5d972878a48da7decb7686eded338b4858fbabeed513d63a7c98b2b82d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-xid",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,9 +446,10 @@ dependencies = [
 [[package]]
 name = "crucible"
 version = "0.0.1"
-source = "git+https://github.com/oxidecomputer/crucible?branch=main#8564e768fa94431bad9c4bc5f67c2496f1e0bbc6"
+source = "git+https://github.com/oxidecomputer/crucible?branch=main#6e1f3f0f3ef2f63bd3c37f2c6833639fa9bb26a9"
 dependencies = [
  "aes",
+ "aes-gcm-siv",
  "anyhow",
  "base64",
  "bytes",
@@ -414,6 +459,7 @@ dependencies = [
  "futures",
  "futures-core",
  "rand",
+ "rand_chacha",
  "ringbuffer",
  "serde",
  "serde_json",
@@ -422,7 +468,7 @@ dependencies = [
  "tokio-util",
  "toml",
  "tracing",
- "usdt",
+ "usdt 0.2.1",
  "uuid",
  "xts-mode",
 ]
@@ -430,7 +476,7 @@ dependencies = [
 [[package]]
 name = "crucible-common"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/crucible?branch=main#8564e768fa94431bad9c4bc5f67c2496f1e0bbc6"
+source = "git+https://github.com/oxidecomputer/crucible?branch=main#6e1f3f0f3ef2f63bd3c37f2c6833639fa9bb26a9"
 dependencies = [
  "anyhow",
  "serde",
@@ -444,7 +490,7 @@ dependencies = [
 [[package]]
 name = "crucible-protocol"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/crucible?branch=main#8564e768fa94431bad9c4bc5f67c2496f1e0bbc6"
+source = "git+https://github.com/oxidecomputer/crucible?branch=main#6e1f3f0f3ef2f63bd3c37f2c6833639fa9bb26a9"
 dependencies = [
  "anyhow",
  "bincode",
@@ -458,7 +504,7 @@ dependencies = [
 [[package]]
 name = "crucible-scope"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/crucible?branch=main#8564e768fa94431bad9c4bc5f67c2496f1e0bbc6"
+source = "git+https://github.com/oxidecomputer/crucible?branch=main#6e1f3f0f3ef2f63bd3c37f2c6833639fa9bb26a9"
 dependencies = [
  "anyhow",
  "futures",
@@ -484,6 +530,15 @@ checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
 dependencies = [
  "generic-array 0.14.4",
  "subtle",
+]
+
+[[package]]
+name = "ctr"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "049bb91fb4aaf0e3c7efa6cd5ef877dbbbd15b39dad06d9948de4ec8a75761ea"
+dependencies = [
+ "cipher",
 ]
 
 [[package]]
@@ -629,7 +684,7 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 [[package]]
 name = "dladm"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 dependencies = [
  "libc",
  "num_enum",
@@ -682,7 +737,7 @@ dependencies = [
  "syn",
  "tokio",
  "toml",
- "usdt",
+ "usdt 0.2.1",
  "uuid",
 ]
 
@@ -2163,6 +2218,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "polyval"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8419d2b623c7c0896ff2d5d96e2cb4ede590fed28fcc34934f4c33c036e620a1"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "opaque-debug 0.3.0",
+ "universal-hash",
+]
+
+[[package]]
 name = "postgres-protocol"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2344,7 +2411,7 @@ dependencies = [
 [[package]]
 name = "propolis"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 dependencies = [
  "anyhow",
  "bhyve_api",
@@ -2362,14 +2429,14 @@ dependencies = [
  "slog",
  "thiserror",
  "tokio",
- "usdt",
+ "usdt 0.1.19",
  "viona_api",
 ]
 
 [[package]]
 name = "propolis-client"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 dependencies = [
  "reqwest",
  "ring",
@@ -2385,9 +2452,10 @@ dependencies = [
 [[package]]
 name = "propolis-server"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 dependencies = [
  "anyhow",
+ "const_format",
  "dropshot",
  "futures",
  "hyper",
@@ -2395,6 +2463,7 @@ dependencies = [
  "propolis-client",
  "serde",
  "serde_derive",
+ "serde_json",
  "slog",
  "structopt",
  "thiserror",
@@ -3814,6 +3883,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f14ee04d9415b52b3aeab06258a3f07093182b88ba0f9b8d203f211a7a7d41c7"
 
 [[package]]
+name = "universal-hash"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f214e8f697e925001e66ec2c6e37a4ef93f0f78c2eed7814394e10c62025b05"
+dependencies = [
+ "generic-array 0.14.4",
+ "subtle",
+]
+
+[[package]]
 name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3833,6 +3912,20 @@ dependencies = [
 
 [[package]]
 name = "usdt"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aba50f80946d1ef9b21f40e46b74dd211b9ff5e603ad028c0d58871835ada4f"
+dependencies = [
+ "dof",
+ "dtrace-parser",
+ "serde",
+ "usdt-attr-macro 0.1.5",
+ "usdt-impl 0.1.14",
+ "usdt-macro 0.1.15",
+]
+
+[[package]]
+name = "usdt"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ede7ff58821fee096f60fd731d56f61b56883a4808a290cac15df29baf1bc50"
@@ -3840,9 +3933,23 @@ dependencies = [
  "dof",
  "dtrace-parser",
  "serde",
- "usdt-attr-macro",
- "usdt-impl",
- "usdt-macro",
+ "usdt-attr-macro 0.2.1",
+ "usdt-impl 0.2.1",
+ "usdt-macro 0.2.1",
+]
+
+[[package]]
+name = "usdt-attr-macro"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd55281622053408612f20f3d92df0db533d4b15ec4842883e94c23b1e9351f2"
+dependencies = [
+ "dtrace-parser",
+ "proc-macro2",
+ "quote",
+ "serde_tokenstream",
+ "syn",
+ "usdt-impl 0.1.14",
 ]
 
 [[package]]
@@ -3856,7 +3963,26 @@ dependencies = [
  "quote",
  "serde_tokenstream",
  "syn",
- "usdt-impl",
+ "usdt-impl 0.2.1",
+]
+
+[[package]]
+name = "usdt-impl"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e71989deee492038dec04ea3e5ad68bd876947b5ba35562d0bee04e784557f6a"
+dependencies = [
+ "byteorder",
+ "dof",
+ "dtrace-parser",
+ "libc",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn",
+ "thiserror",
+ "thread-id",
 ]
 
 [[package]]
@@ -3880,6 +4006,20 @@ dependencies = [
 
 [[package]]
 name = "usdt-macro"
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95e4feae7fabf18bc31413acb5bdeb52581c093e2578e80ab7c2a8402ad4e039"
+dependencies = [
+ "dtrace-parser",
+ "proc-macro2",
+ "quote",
+ "serde_tokenstream",
+ "syn",
+ "usdt-impl 0.1.14",
+]
+
+[[package]]
+name = "usdt-macro"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af8dae3bb94dfc25189d8566b8da97ad05003fe24346b118c697c6671b4b7d10"
@@ -3889,7 +4029,7 @@ dependencies = [
  "quote",
  "serde_tokenstream",
  "syn",
- "usdt-impl",
+ "usdt-impl 0.2.1",
 ]
 
 [[package]]
@@ -3929,7 +4069,7 @@ checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 [[package]]
 name = "viona_api"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=b56e473#b56e47369caa9e1484e69d34c0b855d376fe4664"
+source = "git+https://github.com/oxidecomputer/propolis?branch=live-migrate#6acb4ef7b021d764bf7320c1b6af893fab69aae3"
 
 [[package]]
 name = "walkdir"
@@ -4141,6 +4281,12 @@ dependencies = [
  "syn",
  "synstructure",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4756f7db3f7b5574938c3eb1c117038b8e07f95ee6718c0efad4ac21508f1efd"
 
 [[package]]
 name = "zone"
